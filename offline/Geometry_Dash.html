@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@main/gdlite/">
+  <title>Geometry Dash</title>
+  <link rel="icon" type="image/png" href="https://e3334afd.cf-nate.pages.dev/0/g/geodash/game/splash.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #000000 0%, #001a52 55%, #0033cc 100%);
+      font-family: Arial, sans-serif;
+    }
+
+    #gameContainer {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #000000 0%, #001a52 55%, #0033cc 100%);
+      transition: opacity 0.6s ease;
+    }
+
+    .logo {
+      width: min(320px, 78vw);
+      margin-bottom: 34px;
+      filter: drop-shadow(0 0 22px rgba(0, 170, 255, 0.9));
+      animation: float 2.8s ease-in-out infinite;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .bar-wrap {
+      width: min(360px, 82vw);
+      height: 18px;
+      padding: 3px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.10) inset,
+        0 0 18px rgba(0, 140, 255, 0.22);
+      overflow: hidden;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 100%;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .bar {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #00d0ff 0%, #00a3ff 45%, #0066ff 100%);
+      box-shadow: 0 0 18px rgba(0, 180, 255, 0.75);
+      transform-origin: left center;
+      will-change: width;
+    }
+
+    .text {
+      margin-top: 12px;
+      color: #ffffff;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 10px rgba(0, 170, 255, 0.7);
+      user-select: none;
+    }
+
+    .spinner {
+      margin-top: 24px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.18);
+      border-top: 4px solid #00d0ff;
+      animation: spin 0.9s linear infinite;
+      box-shadow: 0 0 18px rgba(0, 170, 255, 0.25);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="gameContainer"></div>
+
+  <div id="loader">
+    <img
+      class="logo"
+      src="https://www.rw-designer.com/icon-image/30356/Geometry%20dash%20logo.png"
+      alt="Geometry Dash"
+    >
+
+    <div class="bar-wrap">
+      <div class="bar-track">
+        <div class="bar" id="bar"></div>
+      </div>
+    </div>
+
+    <div class="text" id="text">0%</div>
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    window.fileMergerConfig = {
+      files: [
+        { name: 'GeometryDashLite.data.unityweb', parts: 2 },
+        { name: 'GeometryDashLite.wasm.code.unityweb', parts: 1 },
+        { name: 'GeometryDashLite.wasm.framework.unityweb', parts: 1 },
+      ],
+      basePath: 'Build/',
+      debug: true
+    };
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@ac5cdfc0042aca584e72619375b4aca948a9243c/merge.js"></script>
+  <script src="Build/UnityLoader.js"></script>
+
+  <script>
+    const bar = document.getElementById("bar");
+    const text = document.getElementById("text");
+    const loader = document.getElementById("loader");
+
+    const SPLASH_HOLD_MS = 3500;
+    const REAL_MAX = 70;
+
+    let displayProgress = 0;
+    let targetProgress = 0;
+    let unityDone = false;
+    let hideScheduled = false;
+    let lastFrame = performance.now();
+
+    function animate() {
+      const now = performance.now();
+      const dt = Math.min((now - lastFrame) / 16.67, 3);
+      lastFrame = now;
+
+      const speed = 0.10 * dt;
+      displayProgress += (targetProgress - displayProgress) * speed;
+
+      if (Math.abs(targetProgress - displayProgress) < 0.02) {
+        displayProgress = targetProgress;
+      }
+
+      const shown = Math.max(0, Math.min(100, displayProgress));
+      bar.style.width = shown + "%";
+      text.textContent = Math.floor(shown) + "%";
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    function startTimerPhase() {
+      if (hideScheduled) return;
+      hideScheduled = true;
+
+      const start = performance.now();
+      const from = 70;
+      const to = 100;
+
+      function tick() {
+        const elapsed = performance.now() - start;
+        const t = Math.min(elapsed / SPLASH_HOLD_MS, 1);
+
+        targetProgress = from + (to - from) * t;
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          setTimeout(() => {
+            loader.style.opacity = "0";
+            setTimeout(() => {
+              loader.style.display = "none";
+            }, 650);
+          }, 150);
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    var gameInstance = UnityLoader.instantiate("gameContainer", "Build/GeometryDashLite.json", {
+      onProgress: function (gameInstance, progress) {
+        if (!unityDone) {
+          const mapped = progress * REAL_MAX;
+          if (mapped > targetProgress) {
+            targetProgress = mapped;
+          }
+
+          if (progress >= 1) {
+            unityDone = true;
+            targetProgress = 70;
+            startTimerPhase();
+          }
+        }
+      }
+    });
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const buttons = document.getElementsByTagName('button');
+      for (let i = 0; i < buttons.length; i++) {
+        if (buttons[i].innerHTML === "OK") {
+          buttons[i].click();
+        }
+      }
+
+      setTimeout(function() {
+        const buttons2 = document.getElementsByTagName('button');
+        for (let i = 0; i < buttons2.length; i++) {
+          if (buttons2[i].innerHTML === "OK") {
+            buttons2[i].click();
+          }
+        }
+      }, 1000);
+    });
+  </script>
+
+  <script src="themes/geometrydashlite.io/rs/js/jquery-3.4.1.min.js"></script>
+  <script>
+    function ToggleInfo() {
+      if ($('button.hide-main-panel').children('i')[0].textContent != 'Info') {
+        $("div.main-panel").css('width', '0px');
+        $("div.main-panel-ads").css('display', 'none');
+        $("div.main-panel-content").css('display', 'none');
+        $('button.hide-main-panel').children('i').html('Info');
+      } else {
+        $("div.main-panel").css('width', $("div.main-panel").css('max-width'));
+        $("div.main-panel-ads").css('display', 'block');
+        $("div.main-panel-content").css('display', 'block');
+        $('button.hide-main-panel').children('i').html('>>');
+      }
+    }
+
+    function ShowInfo() {
+      $("div.main-panel").css('width', $("div.main-panel").css('max-width'));
+      $("div.main-panel-ads").css('display', 'block');
+      $("div.main-panel-content").css('display', 'block');
+      $('button.hide-main-panel').children('i').html('>>');
+    }
+
+    function HideInfo() {
+      $("div.main-panel").css('width', '0px');
+      $("div.main-panel-ads").css('display', 'none');
+      $("div.main-panel-content").css('display', 'none');
+      $('button.hide-main-panel').children('i').html('Info');
+    }
+
+    $('button.hide-main-panel').click(function() {
+      ToggleInfo();
+    });
+  </script>
+</body>
+</html>
